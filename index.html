@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cinema Seat Booking System</title>
+    
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a202c;
+            color: #e2e8f0;
+        }
+        .container {
+            max-width: 900px;
+        }
+        .header h1 {
+            color: #63b3ed;
+        }
+        .tab {
+            @apply px-4 py-2 text-sm font-medium;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+        }
+        .tab.active {
+            @apply border-indigo-500 text-indigo-400;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .screen {
+            background-color: #3f4e6e;
+            border-bottom-left-radius: 50% 100%;
+            border-bottom-right-radius: 50% 100%;
+        }
+        .seat-row {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .seat {
+            width: 30px;
+            height: 30px;
+            background-color: #4a5568;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+            transition: transform 0.2s, background-color 0.2s;
+        }
+        .seat:hover:not(.occupied) {
+            transform: scale(1.1);
+        }
+        .seat.occupied {
+            background-color: #a0aec0;
+            cursor: not-allowed;
+        }
+        .seat.selected {
+            background-color: #667eea;
+            color: white;
+            border: 2px solid #fff;
+        }
+        .seat.premium {
+            background-color: #ecc94b;
+        }
+        .seat.premium.selected {
+            background-color: #d69e2e;
+            color: white;
+            border: 2px solid #fff;
+        }
+        .legend-seat {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+        }
+        .legend-seat.available {
+            background-color: #4a5568;
+        }
+        .legend-seat.occupied {
+            background-color: #a0aec0;
+        }
+        .legend-seat.selected {
+            background-color: #667eea;
+        }
+        .legend-seat.premium {
+            background-color: #ecc94b;
+        }
+        .booking-form {
+            background-color: #2d3748;
+        }
+        .modal {
+            background-color: rgba(0, 0, 0, 0.7);
+        }
+        .modal-content {
+            background-color: #2d3748;
+            max-width: 500px;
+        }
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #63b3ed;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .alert {
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+        }
+        .alert-success {
+            background-color: #28a745;
+            color: #fff;
+        }
+        .alert-error {
+            background-color: #dc3545;
+            color: #fff;
+        }
+        .bookings-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .bookings-table th, .bookings-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #4a5568;
+        }
+        .bookings-table th {
+            background-color: #2d3748;
+            font-weight: bold;
+        }
+        .bookings-table tr:hover {
+            background-color: #2b3541;
+        }
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+        .status-confirmed {
+            background-color: #28a745;
+            color: #fff;
+        }
+        .status-cancelled {
+            background-color: #dc3545;
+            color: #fff;
+        }
+        .action-buttons button {
+            margin-right: 5px;
+            padding: 6px 12px;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+        }
+        .btn-warning {
+            background-color: #ffc107;
+            color: #212529;
+        }
+        .btn-secondary {
+            background-color: #6c757d;
+            color: #fff;
+        }
+        .btn-danger {
+            background-color: #dc3545;
+            color: #fff;
+        }
+        .row-label {
+            font-weight: bold;
+            width: 30px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200">
+    <div class="container mx-auto p-4 md:p-8">
+        <div class="header text-center mb-8">
+            <h1 class="text-4xl font-bold">🎬 Cinema Seat Booking</h1>
+            <p class="mt-2 text-lg text-gray-400">Book your favorite seats for the latest movies</p>
+        </div>
+
+        <div class="main-content bg-gray-800 rounded-lg shadow-lg p-6">
+            <div class="tabs flex justify-center border-b border-gray-700 mb-6">
+                <button class="tab active" onclick="showTab('booking')">Book Seats</button>
+                <button class="tab" onclick="showTab('manage')">Manage Bookings</button>
+            </div>
+
+            <!-- Booking Tab -->
+            <div id="booking" class="tab-content active">
+                <div class="movie-selection mb-6 p-4 rounded-md bg-gray-700">
+                    <div class="flex flex-col md:flex-row md:space-x-4">
+                        <div class="form-group flex-1 mb-4 md:mb-0">
+                            <label for="movieSelect" class="block text-sm font-medium text-gray-400 mb-1">Select Movie</label>
+                            <select id="movieSelect" class="w-full bg-gray-600 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500" onchange="loadShowTimes()">
+                                <option value="">Choose a movie...</option>
+                            </select>
+                        </div>
+                        <div class="form-group flex-1">
+                            <label for="showTimeSelect" class="block text-sm font-medium text-gray-400 mb-1">Select Show Time</label>
+                            <select id="showTimeSelect" class="w-full bg-gray-600 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500" onchange="loadSeats()" disabled>
+                                <option value="">Choose show time...</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="seatSelection" class="seat-layout p-4 rounded-md bg-gray-700 text-center" style="display:none;">
+                    <div class="screen text-xl font-bold py-4 mb-8 text-gray-200">🎬 SCREEN</div>
+                    
+                    <div class="legend flex flex-wrap justify-center gap-4 text-sm mb-8">
+                        <div class="legend-item flex items-center space-x-2">
+                            <div class="legend-seat available bg-gray-600"></div>
+                            <span>Available</span>
+                        </div>
+                        <div class="legend-item flex items-center space-x-2">
+                            <div class="legend-seat occupied bg-gray-400"></div>
+                            <span>Occupied</span>
+                        </div>
+                        <div class="legend-item flex items-center space-x-2">
+                            <div class="legend-seat selected bg-indigo-500"></div>
+                            <span>Selected</span>
+                        </div>
+                        <div class="legend-item flex items-center space-x-2">
+                            <div class="legend-seat premium bg-yellow-500"></div>
+                            <span>Premium (₹200)</span>
+                        </div>
+                        <div class="legend-item flex items-center space-x-2">
+                            <div class="legend-seat regular bg-gray-600"></div>
+                            <span>Regular (₹150)</span>
+                        </div>
+                    </div>
+
+                    <div id="seatsContainer" class="flex flex-col items-center"></div>
+                    
+                    <div id="priceDisplay" class="price-display mt-8 p-4 bg-gray-800 rounded-md shadow-inner" style="display:none;">
+                        <h3 class="text-xl font-semibold">Total: ₹<span id="totalPrice">0</span></h3>
+                        <p class="text-sm text-gray-400 mt-2">Selected Seat: <span id="selectedSeat">None</span></p>
+                    </div>
+                </div>
+
+                <div id="bookingForm" class="booking-form mt-8 p-6 rounded-lg shadow-lg" style="display:none;">
+                    <h3 class="text-2xl font-bold mb-4">Passenger Details</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="form-group">
+                            <label for="userName" class="block text-sm font-medium text-gray-400 mb-1">Full Name *</label>
+                            <input type="text" id="userName" required placeholder="Enter your full name" class="w-full bg-gray-600 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div class="form-group">
+                            <label for="userEmail" class="block text-sm font-medium text-gray-400 mb-1">Email *</label>
+                            <input type="email" id="userEmail" required placeholder="Enter your email" class="w-full bg-gray-600 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div class="form-group">
+                            <label for="userPhone" class="block text-sm font-medium text-gray-400 mb-1">Phone Number *</label>
+                            <input type="tel" id="userPhone" required placeholder="Enter your phone number" class="w-full bg-gray-600 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+                    <div class="booking-form-actions mt-6 flex justify-center space-x-4">
+                        <button class="btn btn-primary bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-full transition duration-300" onclick="confirmBooking()">Confirm Booking</button>
+                        <button class="btn btn-secondary bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded-full transition duration-300" onclick="resetBooking()">Reset</button>
+                    </div>
+                </div>
+
+                <div id="bookingAlert" class="mt-4 text-center"></div>
+            </div>
+
+            <!-- Manage Bookings Tab -->
+            <div id="manage" class="tab-content">
+                <div class="manage-bookings-header flex justify-between items-center mb-4">
+                    <h3 class="text-2xl font-bold">All Bookings</h3>
+                    <div class="flex space-x-2">
+                        <button class="btn btn-primary bg-indigo-500 hover:bg-indigo-600 text-white py-2 px-4 rounded-full transition-colors duration-300" onclick="loadBookings()">🔄 Refresh</button>
+                        <button class="btn btn-secondary bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-full transition-colors duration-300" onclick="exportBookings()">📊 Export</button>
+                    </div>
+                </div>
+                
+                <div id="bookingsContainer">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <p class="mt-4 text-gray-400">Loading bookings...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Booking Modal -->
+    <div id="editModal" class="modal fixed inset-0 flex items-center justify-center p-4" style="display: none;">
+        <div class="modal-content p-6 rounded-lg shadow-xl">
+            <h3 class="text-xl font-bold mb-4">Edit Booking</h3>
+            <div class="form-group mb-4">
+                <label for="editUserName" class="block text-sm font-medium text-gray-400 mb-1">Full Name</label>
+                <input type="text" id="editUserName" placeholder="Enter full name" class="w-full bg-gray-600 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="form-group mb-4">
+                <label for="editUserEmail" class="block text-sm font-medium text-gray-400 mb-1">Email</label>
+                <input type="email" id="editUserEmail" placeholder="Enter email address" class="w-full bg-gray-600 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="form-group mb-4">
+                <label for="editUserPhone" class="block text-sm font-medium text-gray-400 mb-1">Phone</label>
+                <input type="tel" id="editUserPhone" placeholder="Enter phone number" class="w-full bg-gray-600 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="modal-buttons flex justify-end space-x-4">
+                <button class="btn bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-full" onclick="updateBooking()">Update</button>
+                <button class="btn bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-full" onclick="closeEditModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+// Cinema Booking System - JavaScript Application
+// Global variables
+let selectedSeat = null;
+let currentMovie = '';
+let currentShowTime = '';
+let currentBookingId = null;
+let selectedPrice = 0;
+
+// API URL for the backend
+const API_URL = 'http://localhost:3001/api';
+
+// Utility function to show alerts
+function showAlert(message, type) {
+    const alertDiv = document.getElementById('bookingAlert');
+    alertDiv.innerHTML = `<div class="p-4 rounded-lg text-center ${type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}">${message}</div>`;
+    setTimeout(() => {
+        alertDiv.innerHTML = '';
+    }, 5000);
+}
+
+// Tab functionality
+function showTab(tabName) {
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    document.getElementById(tabName).classList.add('active');
+    document.querySelector(`.tab[onclick="showTab('${tabName}')"]`).classList.add('active');
+
+    if (tabName === 'manage') {
+        loadBookings();
+    }
+}
+
+// Load movies into the select dropdown
+async function loadMovies() {
+    try {
+        const response = await fetch(`${API_URL}/movies`);
+        if (!response.ok) throw new Error('Failed to fetch movies');
+        const movies = await response.json();
+        const movieSelect = document.getElementById('movieSelect');
+        movieSelect.innerHTML = '<option value="">Choose a movie...</option>';
+        movies.forEach(movie => {
+            movieSelect.innerHTML += `<option value="${movie}">${movie}</option>`;
+        });
+    } catch (error) {
+        console.error('Error loading movies:', error);
+        showAlert('Failed to load movies. Please check server connection.', 'error');
+    }
+}
+
+// Load show times based on selected movie
+async function loadShowTimes() {
+    const movieSelect = document.getElementById('movieSelect');
+    currentMovie = movieSelect.value;
+    const showTimeSelect = document.getElementById('showTimeSelect');
+    showTimeSelect.disabled = true;
+    showTimeSelect.innerHTML = '<option value="">Choose show time...</option>';
+    document.getElementById('seatsContainer').innerHTML = '';
+    
+    if (currentMovie) {
+        try {
+            const response = await fetch(`${API_URL}/showtimes/${encodeURIComponent(currentMovie)}`);
+            if (!response.ok) throw new Error('Failed to fetch show times');
+            const showTimes = await response.json();
+            showTimes.forEach(showTime => {
+                showTimeSelect.innerHTML += `<option value="${showTime}">${showTime}</option>`;
+            });
+            showTimeSelect.disabled = false;
+        } catch (error) {
+            console.error('Error loading show times:', error);
+            showAlert('Failed to load show times.', 'error');
+        }
+    }
+}
+
+// Load seats based on selected movie and show time
+async function loadSeats() {
+    currentShowTime = document.getElementById('showTimeSelect').value;
+    const seatsContainer = document.getElementById('seatsContainer');
+    const seatSelection = document.getElementById('seatSelection');
+    seatsContainer.innerHTML = '';
+    selectedSeat = null;
+    updatePriceDisplay();
+    seatSelection.style.display = 'none';
+
+    if (currentMovie && currentShowTime) {
+        try {
+            const response = await fetch(`${API_URL}/seats/${encodeURIComponent(currentMovie)}/${encodeURIComponent(currentShowTime)}`);
+            if (!response.ok) throw new Error('Failed to fetch seats');
+            const seats = await response.json();
+            
+            const rows = {};
+            seats.forEach(seat => {
+                const rowChar = seat.seat_number.charAt(0);
+                if (!rows[rowChar]) {
+                    rows[rowChar] = [];
+                }
+                rows[rowChar].push(seat);
+            });
+
+            for (const row in rows) {
+                const rowDiv = document.createElement('div');
+                rowDiv.className = 'seat-row';
+                rows[row].forEach(seat => {
+                    const seatDiv = document.createElement('div');
+                    seatDiv.className = `seat ${seat.is_available ? 'available' : 'occupied'} ${seat.seat_type}`;
+                    seatDiv.textContent = seat.seat_number;
+                    seatDiv.dataset.seatNumber = seat.seat_number;
+                    seatDiv.dataset.price = seat.price;
+                    if (seat.is_available) {
+                        seatDiv.onclick = () => selectSeat(seat.seat_number, seat.price);
+                    }
+                    rowDiv.appendChild(seatDiv);
+                });
+                seatsContainer.appendChild(rowDiv);
+            }
+            seatSelection.style.display = 'block';
+
+        } catch (error) {
+            console.error('Error loading seats:', error);
+            showAlert('Failed to load seats.', 'error');
+        }
+    }
+}
+
+// Select a seat
+function selectSeat(seatNumber, price) {
+    const seats = document.querySelectorAll('.seat.available');
+    seats.forEach(seat => seat.classList.remove('selected'));
+    const selectedDiv = document.querySelector(`.seat[data-seat-number="${seatNumber}"]`);
+    if(selectedDiv) selectedDiv.classList.add('selected');
+    selectedSeat = seatNumber;
+    selectedPrice = price;
+    updatePriceDisplay();
+    document.getElementById('bookingForm').style.display = 'block';
+}
+
+// Update price and seat display
+function updatePriceDisplay() {
+    document.getElementById('totalPrice').textContent = selectedPrice;
+    document.getElementById('selectedSeat').textContent = selectedSeat || 'None';
+    document.getElementById('priceDisplay').style.display = 'block';
+}
+
+// Confirm booking
+async function confirmBooking() {
+    if (!selectedSeat) {
+        showAlert('Please select a seat to book.', 'error');
+        return;
+    }
+
+    const userName = document.getElementById('userName').value;
+    const userEmail = document.getElementById('userEmail').value;
+    const userPhone = document.getElementById('userPhone').value;
+    
+    if (!userName || !userEmail || !userPhone) {
+        showAlert('Please fill in all passenger details.', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/bookings`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                userName: userName,
+                email: userEmail,
+                phone: userPhone,
+                movieName: currentMovie,
+                showTime: currentShowTime,
+                seatNumber: selectedSeat
+            })
+        });
+
+        const result = await response.json();
+        if (response.ok) {
+            showAlert('Booking confirmed successfully!', 'success');
+            resetBooking();
+            loadSeats();
+        } else {
+            showAlert(`Booking failed: ${result.error}`, 'error');
+        }
+    } catch (error) {
+        console.error('Booking error:', error);
+        showAlert('An error occurred while booking. Please try again.', 'error');
+    }
+}
+
+// Reset the booking form
+function resetBooking() {
+    selectedSeat = null;
+    selectedPrice = 0;
+    document.getElementById('userName').value = '';
+    document.getElementById('userEmail').value = '';
+    document.getElementById('userPhone').value = '';
+    document.querySelectorAll('.seat.selected').forEach(seat => seat.classList.remove('selected'));
+    updatePriceDisplay();
+    document.getElementById('bookingForm').style.display = 'none';
+}
+
+// Load all bookings for the manage tab
+async function loadBookings() {
+    const bookingsContainer = document.getElementById('bookingsContainer');
+    bookingsContainer.innerHTML = `<div class="loading"><div class="spinner"></div><p class="mt-4 text-gray-400">Loading bookings...</p></div>`;
+    try {
+        const response = await fetch(`${API_URL}/bookings`);
+        if (!response.ok) throw new Error('Failed to fetch bookings');
+        const bookings = await response.json();
+        
+        if (bookings.length === 0) {
+            bookingsContainer.innerHTML = '<p class="text-center text-gray-400 mt-8">No bookings found.</p>';
+            return;
+        }
+
+        bookingsContainer.innerHTML = '';
+        bookings.forEach(booking => {
+            const bookingCard = document.createElement('div');
+            bookingCard.className = 'booking-card bg-gray-700 rounded-lg shadow-md p-4 mb-4 flex flex-col md:flex-row justify-between items-center';
+            bookingCard.innerHTML = `
+                <div class="booking-details text-left flex-1 mb-4 md:mb-0">
+                    <p class="text-xl font-bold">${booking.movie_name} <span class="text-sm font-normal text-gray-400">(${booking.show_time})</span></p>
+                    <p class="mt-1">Seat: <span class="font-semibold">${booking.seat_number}</span>, Price: ₹${booking.price} (${booking.seat_type})</p>
+                    <p class="text-sm text-gray-400">Booked by: ${booking.user_name} (${booking.email}) on ${new Date(booking.booking_date).toLocaleDateString()}</p>
+                </div>
+                <div class="booking-actions flex space-x-2">
+                    <button class="btn btn-edit bg-yellow-500 hover:bg-yellow-600 text-gray-900 py-2 px-4 rounded-full" onclick="openEditModal(${booking.id}, '${booking.user_name}', '${booking.email}', '${booking.phone}')">Edit</button>
+                    <button class="btn btn-cancel bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-full" onclick="cancelBooking(${booking.id})">Cancel</button>
+                </div>
+            `;
+            bookingsContainer.appendChild(bookingCard);
+        });
+    } catch (error) {
+        console.error('Error loading bookings:', error);
+        bookingsContainer.innerHTML = `<p class="text-center text-red-400 mt-8">Failed to load bookings. Please check the server connection.</p>`;
+    }
+}
+
+// Open edit modal
+function openEditModal(id, name, email, phone) {
+    currentBookingId = id;
+    document.getElementById('editUserName').value = name;
+    document.getElementById('editUserEmail').value = email;
+    document.getElementById('editUserPhone').value = phone;
+    document.getElementById('editModal').style.display = 'flex';
+}
+
+// Close edit modal
+function closeEditModal() {
+    document.getElementById('editModal').style.display = 'none';
+    currentBookingId = null;
+}
+
+// Update a booking
+async function updateBooking() {
+    if (!currentBookingId) return;
+
+    const userName = document.getElementById('editUserName').value;
+    const userEmail = document.getElementById('editUserEmail').value;
+    const userPhone = document.getElementById('editUserPhone').value;
+
+    try {
+        const response = await fetch(`${API_URL}/bookings/${currentBookingId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userName, email: userEmail, phone: userPhone })
+        });
+
+        const result = await response.json();
+        if (response.ok) {
+            showAlert('Booking updated successfully!', 'success');
+            closeEditModal();
+            loadBookings();
+        } else {
+            showAlert(`Update failed: ${result.error}`, 'error');
+        }
+    } catch (error) {
+        console.error('Update error:', error);
+        showAlert('An error occurred while updating the booking.', 'error');
+    }
+}
+
+// Cancel a booking
+async function cancelBooking(id) {
+    if (confirm('Are you sure you want to cancel this booking?')) {
+        try {
+            const response = await fetch(`${API_URL}/bookings/${id}/cancel`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            const result = await response.json();
+            if (response.ok) {
+                showAlert('Booking cancelled successfully!', 'success');
+                loadBookings();
+                loadSeats(); // Refresh seats in the other tab
+            } else {
+                showAlert(`Cancellation failed: ${result.error}`, 'error');
+            }
+        } catch (error) {
+            console.error('Cancellation error:', error);
+            showAlert('An error occurred while canceling the booking.', 'error');
+        }
+    }
+}
+
+// Export bookings functionality
+async function exportBookings() {
+    try {
+        const response = await fetch(`${API_URL}/bookings`);
+        const bookings = await response.json();
+        
+        if (bookings.length === 0) {
+            showAlert('No bookings to export', 'error');
+            return;
+        }
+        
+        const headers = ['ID', 'Name', 'Email', 'Phone', 'Movie', 'Show Time', 'Seat', 'Price', 'Status', 'Booking Date'];
+        const csvContent = [
+            headers.join(','),
+            ...bookings.map(booking => [
+                booking.id,
+                `"${booking.user_name}"`,
+                booking.email,
+                booking.phone,
+                `"${booking.movie_name}"`,
+                booking.show_time,
+                booking.seat_number,
+                booking.price,
+                booking.status,
+                new Date(booking.booking_date).toLocaleDateString()
+            ].join(','))
+        ].join('\n');
+        
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `cinema_bookings_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        showAlert('Bookings exported successfully', 'success');
+    } catch (error) {
+        console.error('Error exporting bookings:', error);
+        showAlert('Error exporting bookings', 'error');
+    }
+}
+        
+document.addEventListener('keydown', function(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'r' && document.getElementById('manage').classList.contains('active')) {
+        e.preventDefault();
+        loadBookings();
+    }
+    
+    if ((e.ctrlKey || e.metaKey) && e.key === 'e' && document.getElementById('manage').classList.contains('active')) {
+        e.preventDefault();
+        exportBookings();
+    }
+});
+
+console.log('🎬 Cinema Booking System loaded successfully!');
+        
+window.addEventListener('beforeunload', function() {
+    document.body.style.opacity = '0.7';
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadMovies();
+});
+    </script>
+</body>
+</html>
